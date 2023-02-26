@@ -25,6 +25,7 @@ import tensorflow.compat.v2 as tf
 from tf_quant_finance.black_scholes import vanilla_prices
 
 #spread option price: P_0(S_1, S_2, t) = S_1*N(d_1) - (S_2 + K*e^(-rt))*N(d_2)
+#S = D*F, F = S/D forward price, D = e^(-rt)
 #regular option price:       P_0(S, t) = S*N(d_1) - K*e^(-rt)*N(d_2)
 
 def spread_option_price(volatilities1,
@@ -45,8 +46,23 @@ def spread_option_price(volatilities1,
                         dtype=None,
                         name=None):
 
-    if (spots is None) == (forwards is None):
-        raise ValueError('Either spots or forwards must be supplied but not both.')
+    strikes = tf.convert_to_tensor(strikes, dtype=dtype, name='strikes')
+    dtype = strikes.dtype
+    volatilities1 = tf.convert_to_tensor(
+        volatilities1, dtype=dtype, name='volatilities1')
+    volatilities2 = tf.convert_to_tensor(
+        volatilities2, dtype=dtype, name='volatilities2')
+    expiries = tf.convert_to_tensor(expiries, dtype=dtype, name='expiries')
+
+    if (spots1 is None) == (forwards1 is None):
+        if (spots2 is None) == (forwards2 is None):
+            raise ValueError('Either spots or forwards must be supplied but not both.')
+        elif (spots2 is not None) or (forwards2 is not None):
+            raise ValueError('Either spots or forwards for both assets must be supplied.')
+
+    #if (spots is None) == (forwards is None):
+    #    raise ValueError('Either spots or forwards must be supplied but not both.')
+
     if (discount_rates is not None) and (discount_factors is not None):
         raise ValueError('At most one of discount_rates and discount_factors may '
                         'be supplied')
@@ -64,17 +80,42 @@ def spread_option_price(volatilities1,
             0.0, dtype=dtype, name='discount_rates')
         discount_factors = tf.convert_to_tensor(
             1.0, dtype=dtype, name='discount_factors')
-
     if dividend_rates is None:
       dividend_rates = tf.convert_to_tensor(
           0.0, dtype=dtype, name='dividend_rates')
 
+    
+    #if forwards is not None:
+    #    forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
+    #else:
+    #    spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
+    #    forwards = spots * tf.exp((discount_rates - dividend_rates) * expiries)
 
-    if forwards is not None:
-        forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
+    if (forwards1 is not None) == (forwards2 is not None):
+        forwards1 = tf.convert_to_tensor(forwards1, dtype=dtype, name='forwards1')
+        forwards2 = tf.convert_to_tensor(forwards2, dtype=dtype, name='forwards2')
     else:
-        spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
-        forwards = spots * tf.exp((discount_rates - dividend_rates) * expiries)
+        spots1 = tf.convert_to_tensor(spots1, dtype=dtype, name='spots1')
+        spots2 = tf.convert_to_tensor(spots2, dtype=dtype, name='spots2')
+        forwards1 = spots1 * tf.exp((discount_rates - dividend_rates) * expiries)
+        forwards2 = spots2 * tf.exp((discount_rates - dividend_rates) * expiries)
+        
+    sqrt_var1 = volatilities1 * tf.math.sqrt(expiries)#sigma_s * sqrt(t)
+    sqrt_var2 = volatilities2 * tf.math.sqrt(expiries)
+    if not is_normal_volatility:  # lognormal model
+        d1 = tf.math.divide_no_nan(tf.math.log(forwards / strikes),#ln(S/K)
+                                 sqrt_var) + sqrt_var / 2
+        d2 = d1 - sqrt_var
+        undiscounted_calls = tf.where(sqrt_var > 0,
+                                        forwards * _ncdf(d1) - strikes * _ncdf(d2),
+                                        tf.math.maximum(forwards - strikes, 0.0))
+    else:  # normal model
+        d1 = tf.math.divide_no_nan((forwards - strikes), sqrt_var)
+        undiscounted_calls = tf.where(
+            sqrt_var > 0.0, (forwards - strikes) * _ncdf(d1) +
+            sqrt_var * tf.math.exp(-0.5 * d1**2) / np.sqrt(2 * np.pi),
+            tf.math.maximum(forwards - strikes, 0.0))
+
 
 
 
