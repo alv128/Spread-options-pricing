@@ -43,7 +43,6 @@ def spread_option_price(volatilities1,
                         discount_factors,#e^(-rt), mutually exclusive to discount_rates
                         #sigma_const,
                         is_call_options,#if not provided, assume call options
-                        is_normal_volatility: bool = False,
                         dtype=None,
                         name=None):
 
@@ -123,6 +122,17 @@ def spread_option_price(volatilities1,
     if is_call_options is None:
         return discount_factors * undiscounted_calls
     
+    #TODO
+    #what does tf.math.divide_no_nan do, why is it needed
+    #tf.math.maximum(forwards - strikes, 0.0)), why is it needed, how to formulate for spread options
+    #put options
+
+    undiscounted_forward = forwards - strikes
+    undiscounted_puts = undiscounted_calls - undiscounted_forward
+    predicate = tf.broadcast_to(is_call_options, tf.shape(undiscounted_calls))
+    return discount_factors * tf.where(predicate, undiscounted_calls,
+                                       undiscounted_puts)
+
 
 
 def _ncdf(x):
