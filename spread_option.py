@@ -24,18 +24,23 @@ import numpy as np
 import tensorflow.compat.v2 as tf
 from tf_quant_finance.black_scholes import vanilla_prices
 
+#spread option price: P_0(S_1, S_2, t) = S_1*N(d_1) - (S_2 + K*e^(-rt))*N(d_2)
+#regular option price:       P_0(S, t) = S*N(d_1) - K*e^(-rt)*N(d_2)
 
-def spread_option_price(volatilities,
+def spread_option_price(volatilities1,
+                        volatilities2,
                         correlations,
-                        strikes,
-                        expiries,
-                        spots,
-                        forwards,
-                        discount_rates,
-                        dividend_rates,
-                        discount_factors,
+                        strikes,#K
+                        expiries,#t
+                        spots1,#S_1
+                        spots2,#S_2
+                        forwards1,
+                        forwards2,
+                        discount_rates,#r
+                        dividend_rates,#if provided, substract from discount_rates, discount_rates - dividend_rates
+                        discount_factors,#e^(-rt), mutually exclusive to discount_rates
                         #sigma_const,
-                        is_call_options,
+                        is_call_options,#if not provided, assume call options
                         is_normal_volatility: bool = False,
                         dtype=None,
                         name=None):
@@ -45,6 +50,34 @@ def spread_option_price(volatilities,
     if (discount_rates is not None) and (discount_factors is not None):
         raise ValueError('At most one of discount_rates and discount_factors may '
                         'be supplied')
+    
+    if discount_rates is not None:
+        discount_rates = tf.convert_to_tensor(
+            discount_rates, dtype=dtype, name='discount_rates')
+        discount_factors = tf.exp(-discount_rates * expiries)
+    elif discount_factors is not None:
+        discount_factors = tf.convert_to_tensor(
+            discount_factors, dtype=dtype, name='discount_factors')
+        discount_rates = -tf.math.log(discount_factors) / expiries
+    else:
+        discount_rates = tf.convert_to_tensor(
+            0.0, dtype=dtype, name='discount_rates')
+        discount_factors = tf.convert_to_tensor(
+            1.0, dtype=dtype, name='discount_factors')
+
+    if dividend_rates is None:
+      dividend_rates = tf.convert_to_tensor(
+          0.0, dtype=dtype, name='dividend_rates')
+
+
+    if forwards is not None:
+        forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
+    else:
+        spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
+        forwards = spots * tf.exp((discount_rates - dividend_rates) * expiries)
+
+
+
 
     #Kirk's approximation using WKB method for the two-dimensional Black-Scholes models for spread-options
     with tf.name_scope(name or 'spread_option_price'):
