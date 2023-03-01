@@ -19,6 +19,8 @@
 [1] C. F. Lo, 2013. A simple derivation of Kirk's approximation for spread options. Applied Mathematical Letters.
 [2] D. Prathumwan & K. Trachoo, 2020. On the solution of two-dimensional fractional Black-Scholes Equation for 
     European put option. Advances in Difference Equations.
+    
+Multi asset options derivation: http://www.cs.toronto.edu/pub/reports/na/ccc/ywchen-18-msc.pdf
 
 """
 
