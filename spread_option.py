@@ -17,6 +17,8 @@
 ## References
 
 [1] C. F. Lo, 2013. A simple derivation of Kirk's approximation for spread options. Applied Mathematical Letters.
+[2] D. Prathumwan & K. Trachoo, 2020. On the solution of two-dimensional fractional Black-Scholes Equation for 
+    European put option. Advances in Difference Equations.
 
 """
 
@@ -41,7 +43,6 @@ def spread_option_price(volatilities1,
                         discount_rates,#r
                         dividend_rates,#if provided, substract from discount_rates, discount_rates - dividend_rates
                         discount_factors,#e^(-rt), mutually exclusive to discount_rates
-                        #sigma_const,
                         is_call_options,#if not provided, assume call options
                         dtype=None,
                         name=None):
@@ -118,21 +119,17 @@ def spread_option_price(volatilities1,
     #d2 = d1 - sqrt_var
     undiscounted_calls = tf.where(sqrt_var > 0,
                                     forwards1 * _ncdf(d1) - (forwards2 + strikes) * _ncdf(d2),
-                                    tf.math.maximum(forwards - strikes, 0.0))#TODO
+                                    tf.math.maximum(forwards1 - forwards2 - strikes, 0.0))#TODO
     if is_call_options is None:
         return discount_factors * undiscounted_calls
     
-    #TODO
-    #what does tf.math.divide_no_nan do, why is it needed
-    #tf.math.maximum(forwards - strikes, 0.0)), why is it needed, how to formulate for spread options
-    #put options
+    #Wikipedia: For spread put options, P = max(0, K - S_1 + S_2)
+    #PUT: strikes*_ncdf(-d2) - forwards*_ncdf(-d1)
+    undiscounted_puts = tf.where(sqrt_var > 0, 
+                                (forwards2 + strikes) * _ncdf(-d2) - forwards1 * _ncdf(-d1), 
+                                tf.math.maximum(forwards2 + strikes - forwards1, 0.0))
 
-    undiscounted_forward = forwards - strikes
-    undiscounted_puts = undiscounted_calls - undiscounted_forward
-    predicate = tf.broadcast_to(is_call_options, tf.shape(undiscounted_calls))
-    return discount_factors * tf.where(predicate, undiscounted_calls,
-                                       undiscounted_puts)
-
+    return discount_factors * undiscounted_puts
 
 
 def _ncdf(x):
