@@ -24,7 +24,7 @@
 
 import numpy as np
 import tensorflow.compat.v2 as tf
-from tf_quant_finance.black_scholes import vanilla_prices
+#from tf_quant_finance.black_scholes import vanilla_prices
 
 #spread option price: P_0(S_1, S_2, t) = S_1*N(d_1) - (S_2 + K*e^(-rt))*N(d_2)
 #regular option price:       P_0(S, t) = S*N(d_1) - K*e^(-rt)*N(d_2)
@@ -48,15 +48,6 @@ def spread_option_price(volatilities1,
                         dtype=None,
                         name=None):
 
-    strikes = tf.convert_to_tensor(strikes, dtype=dtype, name='strikes')
-    dtype = strikes.dtype
-    volatilities1 = tf.convert_to_tensor(
-        volatilities1, dtype=dtype, name='volatilities1')
-    volatilities2 = tf.convert_to_tensor(
-        volatilities2, dtype=dtype, name='volatilities2')
-    expiries = tf.convert_to_tensor(expiries, dtype=dtype, name='expiries')
-    correlations = tf.convert_to_tensor(correlations, dtype=dtype, name='correlations')
-
     if (spots1 is None) == (forwards1 is None):
         if (spots2 is None) == (forwards2 is None):
             raise ValueError('Either spots or forwards must be supplied but not both.')
@@ -70,70 +61,87 @@ def spread_option_price(volatilities1,
         raise ValueError('At most one of discount_rates and discount_factors may '
                         'be supplied')
     
-    if discount_rates is not None:
-        discount_rates = tf.convert_to_tensor(
-            discount_rates, dtype=dtype, name='discount_rates')
-        discount_factors = tf.exp(-discount_rates * expiries)
-    elif discount_factors is not None:
-        discount_factors = tf.convert_to_tensor(
-            discount_factors, dtype=dtype, name='discount_factors')
-        discount_rates = -tf.math.log(discount_factors) / expiries
-    else:
-        discount_rates = tf.convert_to_tensor(
-            0.0, dtype=dtype, name='discount_rates')
-        discount_factors = tf.convert_to_tensor(
-            1.0, dtype=dtype, name='discount_factors')
-    if dividend_rates1 is None:
-      dividend_rates1 = tf.convert_to_tensor(
-          0.0, dtype=dtype, name='dividend_rates1')
-    if dividend_rates2 is None:
-      dividend_rates2 = tf.convert_to_tensor(
-          0.0, dtype=dtype, name='dividend_rates2')
+    with tf.name_scope(name or 'spread_option_price'):
 
-    
-    #if forwards is not None:
-    #    forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
-    #else:
-    #    spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
-    #    forwards = spots * tf.exp((discount_rates - dividend_rates) * expiries)
+        strikes = tf.convert_to_tensor(strikes, dtype=dtype, name='strikes')
+        dtype = strikes.dtype
+        volatilities1 = tf.convert_to_tensor(
+            volatilities1, dtype=dtype, name='volatilities1')
+        volatilities2 = tf.convert_to_tensor(
+            volatilities2, dtype=dtype, name='volatilities2')
+        expiries = tf.convert_to_tensor(expiries, dtype=dtype, name='expiries')
+        correlations = tf.convert_to_tensor(correlations, dtype=dtype, name='correlations')
 
-    if (forwards1 is not None) == (forwards2 is not None):
-        forwards1 = tf.convert_to_tensor(forwards1, dtype=dtype, name='forwards1')
-        forwards2 = tf.convert_to_tensor(forwards2, dtype=dtype, name='forwards2')
-    else:
-        spots1 = tf.convert_to_tensor(spots1, dtype=dtype, name='spots1')
-        spots2 = tf.convert_to_tensor(spots2, dtype=dtype, name='spots2')
-        forwards1 = spots1 * tf.exp((discount_rates - dividend_rates1) * expiries)
-        forwards2 = spots2 * tf.exp((discount_rates - dividend_rates2) * expiries)
+        if discount_rates is not None:
+            discount_rates = tf.convert_to_tensor(
+                discount_rates, dtype=dtype, name='discount_rates')
+            discount_factors = tf.exp(-discount_rates * expiries)
+        elif discount_factors is not None:
+            discount_factors = tf.convert_to_tensor(
+                discount_factors, dtype=dtype, name='discount_factors')
+            discount_rates = -tf.math.log(discount_factors) / expiries
+        else:
+            discount_rates = tf.convert_to_tensor(
+                0.0, dtype=dtype, name='discount_rates')
+            discount_factors = tf.convert_to_tensor(
+                1.0, dtype=dtype, name='discount_factors')
+        #if dividend_rates1 is None:
+        if dividend_rates1 is not None:
+            dividend_rates1 = tf.convert_to_tensor(
+                dividend_rates1, dtype=dtype, name='dividend_rates1')
+        else:
+            dividend_rates1 = tf.convert_to_tensor(
+                0.0, dtype=dtype, name='dividend_rates1')
+        if dividend_rates2 is not None:
+            dividend_rates2 = tf.convert_to_tensor(
+                dividend_rates2, dtype=dtype, name='dividend_rates2')
+        else:
+            dividend_rates2 = tf.convert_to_tensor(
+                0.0, dtype=dtype, name='dividend_rates2')
+
+        #if forwards is not None:
+        #    forwards = tf.convert_to_tensor(forwards, dtype=dtype, name='forwards')
+        #else:
+        #    spots = tf.convert_to_tensor(spots, dtype=dtype, name='spots')
+        #    forwards = spots * tf.exp((discount_rates - dividend_rates) * expiries)
+
+        if forwards1 is not None and forwards2 is not None:
+            forwards1 = tf.convert_to_tensor(forwards1, dtype=dtype, name='forwards1')
+            forwards2 = tf.convert_to_tensor(forwards2, dtype=dtype, name='forwards2')
+        else:
+            spots1 = tf.convert_to_tensor(spots1, dtype=dtype, name='spots1')
+            spots2 = tf.convert_to_tensor(spots2, dtype=dtype, name='spots2')
+            forwards1 = spots1 * tf.exp((discount_rates - dividend_rates1) * expiries)
+            forwards2 = spots2 * tf.exp((discount_rates - dividend_rates2) * expiries)
+            
+        #sqrt_var1 = volatilities1 * tf.math.sqrt(expiries)#sigma_s * sqrt(t)
+        #sqrt_var2 = volatilities2 * tf.math.sqrt(expiries)
+
+        #sqrt_var_eff = sqrt_var2 * (forwards2 / (forwards2 + strikes)) #This is the formula
+        sqrt_var_eff = volatilities2 * tf.math.divide_no_nan(forwards2, (forwards2 + strikes))#is no nan needed?
+        #volalities are not squared
+        sqrt_var_ = tf.math.sqrt(tf.math.square(volatilities1) - 2 * correlations * sqrt_var_eff + tf.math.quare(sqrt_var_eff))
+        sqrt_var = sqrt_var_ * tf.math.sqrt(expiries)
+
+        #if not is_normal_volatility:  # lognormal model # Don't need to differentiate between modes 
+        d1 = tf.math.divide_no_nan(tf.math.log(forwards1 / (forwards2 + strikes)), sqrt_var) + sqrt_var / 2
+        d2 = d1 - sqrt_var
+        #d1 = tf.math.divide_no_nan(tf.math.log(forwards / strikes),#ln(S/K)
+        #                         sqrt_var) + sqrt_var / 2
+        #d2 = d1 - sqrt_var
+        undiscounted_calls = tf.where(sqrt_var > 0,
+                                        forwards1 * _ncdf(d1) - (forwards2 + strikes) * _ncdf(d2),
+                                        tf.math.maximum(forwards1 - forwards2 - strikes, 0.0))#TODO
+        if is_call_options is None:
+            return discount_factors * undiscounted_calls
         
-    #sqrt_var1 = volatilities1 * tf.math.sqrt(expiries)#sigma_s * sqrt(t)
-    #sqrt_var2 = volatilities2 * tf.math.sqrt(expiries)
+        #Wikipedia: For spread put options, P = max(0, K - S_1 + S_2)
+        #PUT: strikes*_ncdf(-d2) - forwards*_ncdf(-d1)
+        undiscounted_puts = tf.where(sqrt_var > 0, 
+                                    (forwards2 + strikes) * _ncdf(-d2) - forwards1 * _ncdf(-d1), 
+                                    tf.math.maximum(forwards2 + strikes - forwards1, 0.0))
 
-    #sqrt_var_eff = sqrt_var2 * (forwards2 / (forwards2 + strikes)) #This is the formula
-    sqrt_var_eff = volatilities2 * tf.math.divide_no_nan(forwards2, (forwards2 + strikes))#is no nan needed?
-    #volalities are not squared
-    sqrt_var_ = tf.math.sqrt(tf.math.square(volatilities1) - 2 * correlations * sqrt_var_eff + tf.math.quare(sqrt_var_eff))
-    sqrt_var = sqrt_var_ * tf.math.sqrt(expiries)
-
-    #if not is_normal_volatility:  # lognormal model # Don't need to differentiate between modes 
-    d1 = tf.math.divide_no_nan(tf.math.log(forwards1 / (forwards2 + strikes)), sqrt_var) + sqrt_var / 2
-    d2 = d1 - sqrt_var
-    #d1 = tf.math.divide_no_nan(tf.math.log(forwards / strikes),#ln(S/K)
-    #                         sqrt_var) + sqrt_var / 2
-    #d2 = d1 - sqrt_var
-    undiscounted_calls = tf.where(sqrt_var > 0,
-                                    forwards1 * _ncdf(d1) - (forwards2 + strikes) * _ncdf(d2),
-                                    tf.math.maximum(forwards1 - forwards2 - strikes, 0.0))#TODO
-    if is_call_options is None:
-        return discount_factors * undiscounted_calls
-    
-    #Wikipedia: For spread put options, P = max(0, K - S_1 + S_2)
-    #PUT: strikes*_ncdf(-d2) - forwards*_ncdf(-d1)
-    undiscounted_puts = tf.where(sqrt_var > 0, 
-                                (forwards2 + strikes) * _ncdf(-d2) - forwards1 * _ncdf(-d1), 
-                                tf.math.maximum(forwards2 + strikes - forwards1, 0.0))
-
-    return discount_factors * undiscounted_puts
+        return discount_factors * undiscounted_puts
 
 
 def _ncdf(x):
