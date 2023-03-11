@@ -52,7 +52,7 @@ class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
     expiries = 1.0
     spots1 = np.array([109.998])
     spots2 = np.array([100])
-    discount_rates = np.array([])
+    discount_rates = np.array([0.05])
     dividend_rates1 = np.array([0.03])
     dividend_rates2 = np.array([0.02])
     
@@ -73,7 +73,12 @@ class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
     
     self.assertAllClose(expected_price, computed_price, 1e-10)
 
+#implement test for scalar input as in asian options test
+#implement test for margrabes formula when strike is 0 (K=0)
+#https://en.wikipedia.org/wiki/Margrabe%27s_formula
     
+if __name__ == '__main__':
+    tf.test.main()
 
 
 
