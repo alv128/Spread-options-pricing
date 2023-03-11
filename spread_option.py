@@ -1,4 +1,4 @@
-# Copyright 2019 Google LLC
+# Copyright 2023 Google LLC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,8 +19,6 @@
 [1] C. F. Lo, 2013. A simple derivation of Kirk's approximation for spread options. Applied Mathematical Letters.
 [2] D. Prathumwan & K. Trachoo, 2020. On the solution of two-dimensional fractional Black-Scholes Equation for 
     European put option. Advances in Difference Equations.
-    
-Multi asset options derivation: http://www.cs.toronto.edu/pub/reports/na/ccc/ywchen-18-msc.pdf
 
 """
 
@@ -43,7 +41,8 @@ def spread_option_price(volatilities1,
                         forwards1,
                         forwards2,
                         discount_rates,#r
-                        dividend_rates,#if provided, substract from discount_rates, discount_rates - dividend_rates
+                        dividend_rates1,#if provided, substract from discount_rates, discount_rates - dividend_rates
+                        dividend_rates2,
                         discount_factors,#e^(-rt), mutually exclusive to discount_rates
                         is_call_options,#if not provided, assume call options
                         dtype=None,
@@ -84,9 +83,12 @@ def spread_option_price(volatilities1,
             0.0, dtype=dtype, name='discount_rates')
         discount_factors = tf.convert_to_tensor(
             1.0, dtype=dtype, name='discount_factors')
-    if dividend_rates is None:
-      dividend_rates = tf.convert_to_tensor(
-          0.0, dtype=dtype, name='dividend_rates')
+    if dividend_rates1 is None:
+      dividend_rates1 = tf.convert_to_tensor(
+          0.0, dtype=dtype, name='dividend_rates1')
+    if dividend_rates2 is None:
+      dividend_rates2 = tf.convert_to_tensor(
+          0.0, dtype=dtype, name='dividend_rates2')
 
     
     #if forwards is not None:
@@ -101,8 +103,8 @@ def spread_option_price(volatilities1,
     else:
         spots1 = tf.convert_to_tensor(spots1, dtype=dtype, name='spots1')
         spots2 = tf.convert_to_tensor(spots2, dtype=dtype, name='spots2')
-        forwards1 = spots1 * tf.exp((discount_rates - dividend_rates) * expiries)
-        forwards2 = spots2 * tf.exp((discount_rates - dividend_rates) * expiries)
+        forwards1 = spots1 * tf.exp((discount_rates - dividend_rates1) * expiries)
+        forwards2 = spots2 * tf.exp((discount_rates - dividend_rates2) * expiries)
         
     #sqrt_var1 = volatilities1 * tf.math.sqrt(expiries)#sigma_s * sqrt(t)
     #sqrt_var2 = volatilities2 * tf.math.sqrt(expiries)
