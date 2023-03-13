@@ -40,6 +40,15 @@ from tensorflow.python.framework import test_util  # pylint: disable=g-direct-te
 # dtype=None,
 # name=None
 
+#Formula for call options:
+#S_1*N(d_1) - (S_2 + K*e^(-rt))*N(d_2)
+#D[F * N(d1) - (F + K) * N(d2)]
+#F = S * exp((discount-dividends)*expiry)
+#d1 = log(F1/(F2+K))/SIG + SIG/2
+#d2 = d1 - SIG
+#SIG_eff = 
+
+
 @test_util.run_all_in_graph_and_eager_modes
 class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
   """Tests for methods for the spread option module."""
@@ -73,9 +82,66 @@ class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
     
     self.assertAllClose(expected_price, computed_price, 1e-10)
 
-#implement test for scalar input as in asian options test
-#implement test for margrabes formula when strike is 0 (K=0)
-#https://en.wikipedia.org/wiki/Margrabe%27s_formula
+  #implement test for scalar input as in asian options test
+  def test_option_prices_scalar_input(self):
+    volatilities1 = 0.10
+    volatilities2 = 0.15
+    correlations = 0.3
+    strikes = 5.0
+    expiries = 1.0
+    spots1 = 109.998
+    spots2 = 100
+    discount_rates = 0.05
+    dividend_rates1 = 0.03
+    dividend_rates2 = 0.02
+    
+    expected_price = np.array([8.3636])
+    
+    computed_price = spread_option_price(
+        volatilities1=volatilities1,
+        volatilities2=volatilities2,
+        correlations=correlations,
+        strikes=strikes,
+        expiries=expiries,
+        spots1=spots1,
+        spots2=spots2,
+        discount_rates=discount_rates,
+        dividend_rates1=dividend_rates1,
+        divident_rates2=dividend_rates2,
+    )
+
+    self.assertAllClose(expected_price, computed_price, 1e-10)
+  
+  #implement test for margrabes formula when strike is 0 (K=0)
+  #https://en.wikipedia.org/wiki/Margrabe%27s_formula
+  def test_margrages_formula(self):
+      volatilities1 = np.array([0.10])
+      volatilities2 = np.array([0.15])
+      correlations = np.array([0.3])
+      strikes = np.array([0])
+      expiries = 1.0
+      spots1 = np.array([109.998])
+      spots2 = np.array([100])
+      discount_rates = np.array([0.05])
+      dividend_rates1 = np.array([0.03])
+      dividend_rates2 = np.array([0.02])
+      
+      expected_price = np.array([8.3636])#TODO: calculate expected price for these params
+
+      computed_price = spread_option_price(
+          volatilities1=volatilities1,
+          volatilities2=volatilities2,
+          correlations=correlations,
+          strikes=strikes,
+          expiries=expiries,
+          spots1=spots1,
+          spots2=spots2,
+          discount_rates=discount_rates,
+          dividend_rates1=dividend_rates1,
+          divident_rates2=dividend_rates2,
+      )
+      
+      self.assertAllClose(expected_price, computed_price, 1e-10)
     
 if __name__ == '__main__':
     tf.test.main()
