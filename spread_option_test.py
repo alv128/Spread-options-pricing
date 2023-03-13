@@ -24,29 +24,16 @@ from spread_option import spread_option_price
 from tensorflow.python.framework import test_util  # pylint: disable=g-direct-tensorflow-import
 
 
-# volatilities1,
-# volatilities2,
-# correlations,
-# strikes,
-# expiries,
-# spots1,
-# spots2,
-# forwards1,
-# forwards2,
-# discount_rates,
-# dividend_rates,#if provided, substract from discount_rates, discount_rates - dividend_rates
-# discount_factors,#e^(-rt), mutually exclusive to discount_rates
-# is_call_options,#if not provided, assume call options
-# dtype=None,
-# name=None
-
 #Formula for call options:
-#S_1*N(d_1) - (S_2 + K*e^(-rt))*N(d_2)
-#D[F * N(d1) - (F + K) * N(d2)]
-#F = S * exp((discount-dividends)*expiry)
-#d1 = log(F1/(F2+K))/SIG + SIG/2
-#d2 = d1 - SIG
-#SIG_eff = 
+#S1*N(d1) - (S2 + K*e^(-rt))*N(d2)
+#D[F1 * N(d1) - (F2 + K) * N(d2)]
+#d1 = log(F1/(F2+K))/SQRT_VAR + SQRT_VAR/2
+#d2 = d1 - SQRT_VAR
+#SQRT_VAR = SQRT_VAR_ * sqrt(expiries)
+#SQRT_VAR_ = sqrt(volatilities1**2 - 2 * correlations * SQRT_VAR_EFF + SQRT_VAR_EFF**2)
+#SQRT_VAR_EFF = volatilities2 * F2/(F2+K)
+#F1 = S1 * exp((discount-dividends1)*expiry)
+#F2 = S2 * exp((discount-dividends1)*expiry)
 
 
 @test_util.run_all_in_graph_and_eager_modes
@@ -140,7 +127,7 @@ class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
           dividend_rates1=dividend_rates1,
           divident_rates2=dividend_rates2,
       )
-      
+
       self.assertAllClose(expected_price, computed_price, 1e-10)
     
 if __name__ == '__main__':
