@@ -120,7 +120,7 @@ def spread_option_price(volatilities1,
         #sqrt_var_eff = sqrt_var2 * (forwards2 / (forwards2 + strikes)) #This is the formula
         sqrt_var_eff = volatilities2 * tf.math.divide_no_nan(forwards2, (forwards2 + strikes))#is no nan needed?
         #volalities are not squared
-        sqrt_var_ = tf.math.sqrt(tf.math.square(volatilities1) - 2 * correlations * sqrt_var_eff + tf.math.quare(sqrt_var_eff))
+        sqrt_var_ = tf.math.sqrt(tf.math.square(volatilities1) - 2 * correlations * sqrt_var_eff + tf.math.square(sqrt_var_eff))
         sqrt_var = sqrt_var_ * tf.math.sqrt(expiries)
 
         #if not is_normal_volatility:  # lognormal model # Don't need to differentiate between modes 
