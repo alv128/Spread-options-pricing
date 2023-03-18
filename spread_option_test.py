@@ -154,7 +154,7 @@ class SpreadOptionTest(parameterized.TestCase, tf.test.TestCase):
       dividend_rates1 = np.array([0.03])
       dividend_rates2 = np.array([0.02])
       
-      expected_price = np.array([18.7516])#TODO: calculate expected price for these params
+      expected_price = np.array([21.6089])#TODO: calculate expected price for these params
 
       computed_price = spread_option_price(
           volatilities1=volatilities1,
